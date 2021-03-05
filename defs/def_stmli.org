@@ -1,0 +1,22 @@
+| name        | val                             | interval | trials | anchor | notes |
+|-------------+---------------------------------+----------+--------+--------+-------|
+| nTrl        |                                 |          |        |        |       |
+| maxInterval |                                 | -        | -      | -      | -     |
+| stm         | >dsp_patch                      |          |        |        |       |
+| patches     | <DSP_(LRSI_NAT_)2D*_2AFC(_3-1)> | 1,3      |        |        |       |
+| backdrop    | <name>                          |          |        |        |       |
+| key         | limited                         | 1-4      |        |        |       |
+|             | FC_UD                           | end      |        |        |       |
+| rsp         | i_FC                            | end      |        |        |       |
+| duration    |                                 | 1,3      |        |        |       |
+| duration    |                                 | 2,4      |        |        |       |
+| rms         |                                 |          |        |        |       |
+| dc          |                                 |          |        |        |       |
+| selected    |                                 |          |        |        |       |
+| vrsXY       |                                 |          |        |        |       |
+| vrgXY       |                                 |          |        |        |       |
+| posXYZm     |                                 |          |        |        |       |
+| posXYpixRaw |                                 |          |        |        |       |
+| posXYpix    |                                 |          |        |        |       |
+| sizeDeg     |                                 |          |        |        |       |
+| sizePix     |                                 |          |        |        |       |

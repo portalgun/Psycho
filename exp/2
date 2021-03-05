@@ -1,0 +1,89 @@
+classdef Rsp < handle
+properties
+    % PARAMS
+    answer
+    bCheckCorrect
+    bSoundCorrect
+    bRecordResponse
+    bRecordAnswer
+
+    Opts
+    OptsTable
+
+    FlagNames
+
+    % OUT
+    responses
+
+    flags
+%listening
+end
+properties(Hidden=true)
+    bCorrect
+events
+    ResponseRecorded
+
+end
+methods
+    function obj=Rsp(PAR);
+        T=PAR.EXP.nTrial
+        I=PAR.EXP.nInterval
+        obj.responses=zeros(T,I);
+        obj.answer=zeros(T,I);
+    end
+    function obj=update(t,i)
+        opts=get_opts(t,i):
+        flds=fieldnames(Opts)
+        for i = 1:length(flds)
+            fld=flds{i};
+            obj.(fld)=Opts.(fld);
+        end
+    end
+    function opts=get_opts(t,i)
+        ind=OptsTable(t,i);
+        opts=obj.Opts(ind);
+    end
+    function obj=run(obj,t,i,keyValue,answer)
+        obj.update(t,i);
+
+        if obj.bRecordAnswer
+            obj.record_answer(answer,t,i);
+        end
+        if obj.bRecordResponse
+            obj.record_response(keyValue,t,i);
+        end
+        if obj.bCheckCorrect
+            obj.get_correct(answer,t,i);
+        end
+        if obj.bSoundCorrect
+            obj.sound();
+        end
+    end
+    function obj=record_answer(obj,answer,t,i)
+        obj.answer(t,i)=answer;
+    end
+    function obj=record_response(obj,keyValue,t,i)
+        obj.response(t,i)=keyValue;
+    end
+    function obj=get_correct(obj,answer,t,i)
+        obj.bCorrect(t,i)=obj.response(t,i)==answer(t,i);
+    end
+    function obj=sound(obj)
+        if obj.bSoundCorrect & bCorrect
+            obj.sound_incorrect();
+        elseif obj.bSoundCorrect & ~bCorrect
+            obj.sound_correct();
+        end
+    end
+    function obj = sound_correct(obj)
+        % XXX
+    end
+    function obj = sound_incorrect(obj)
+        % XXX
+    end
+    function OUT=return_OUT(obj)
+        OUT=struct();
+        OUT.responses=obj.responses;
+        OUT.answer=obj.answer;
+    end
+end
