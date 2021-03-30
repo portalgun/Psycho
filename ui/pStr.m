@@ -103,7 +103,7 @@ methods
         obj=parse(obj,Opts,names);
 
         if ~isempty(obj.relXYctr) &&~isempty(obj.relPosHW) && isempty(obj.relRec)
-            obj.relRec=shape3D.ctr2rect(obj.relXYctr,obj.relPosHW(2),obj.relPosHW(1));
+            obj.relRec=Shape3D.ctr2rect(obj.relXYctr,obj.relPosHW(2),obj.relPosHW(1));
         end
 
         if ~startsWith(obj.relPosPRC,'I') && ~startsWith(obj.relPosPRC,'O')
@@ -156,7 +156,7 @@ methods
         obj.rectRaw=[0 0 max(obj.W) sum(obj.H)];
     end
     function obj=get_xy_rel(obj)
-        [obj.xRel,obj.yRel]=shape3D.getXYrel(obj.relRec,obj.relPosPRC,obj.rectRaw,obj.padXY);
+        [obj.xRel,obj.yRel]=Shape3D.getXYrel(obj.relRec,obj.relPosPRC,obj.rectRaw,obj.padXY);
     end
     function obj=get_rect(obj)
         obj.rect=[obj.xRel obj.yRel obj.xRel+max(obj.W) obj.yRel+sum(obj.H)];

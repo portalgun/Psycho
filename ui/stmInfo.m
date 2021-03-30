@@ -16,6 +16,14 @@ methods
         end
     end
     function obj=parse_stm_2IFC(obj,S)
+        if isstruct(S)
+            obj.parse_struct(S);
+        elseif isa(S,'ptchs')
+            obj.parse_ptchs(S);
+        end
+
+    end
+    function obj=parse_struct(obj,S)
         obj.INFO.cmpIntrvl=S.cmpIntrvl+1;
         obj.INFO.stdX=S.stdX;
         obj.INFO.cmpX=S.cmpX;
@@ -26,6 +34,13 @@ methods
         end
         obj.INFO.correct=answ;
     end
+    function obj=parse_ptchs(obj,P)
+        obj.INFO.cmpIntrvl=P.Blk.blk('intrvl').ret();
+        obj.INFO.stdX=P.Blk.get_stdX();
+        obj.INFO.cmpX=P.Blk.get_cmpX();
+        obj.INFO.correct=P.Blk.get_correct();
+    end
+
     function obj=draw(obj,trial)
         obj.get_text(trial);
         draw@pStr(obj);

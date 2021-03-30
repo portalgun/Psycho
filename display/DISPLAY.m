@@ -317,6 +317,14 @@ methods(Static=true)
     function name=get_name_from_display(display)
         name=class(display);
     end
+    function name=get_name_from_hostname(bVR)
+        if ~exist('bVR','var') || isempty(bVR) || ~bVR
+            VRstr='';
+        elseif bVR
+            VRstr='_VR';
+        end
+        name=['display_' hostname VRstr ';'];
+    end
     function display=get_display_from_hostname(bVR)
         if ~exist('bVR','var') || isempty(bVR) || ~bVR
             VRstr='';

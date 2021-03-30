@@ -57,9 +57,7 @@ methods
             Opts=struct();
         end
         obj=obj.input_parser_win3D(Opts);
-        % XXX WHpix
         obj.update_display(ptbORdisp);
-        obj
         obj.init_point();
         obj.init_shape();
         obj.get_proj_plane();

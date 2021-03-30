@@ -38,11 +38,13 @@ properties(Hidden=true)
     stm
     stmTex
     t=0
-    exitflag=0;  % 1 = deliberate quit
+    exitflag=0   % 1 = deliberate quit
     returncode=0 % 1  complete  0  run  -1 error  -2 exited
-    bRunner=0;
+    bRunner=0
     ME
-    
+
+    bPtchs=0
+    loadTime
 end
 methods
     function obj = psycho_simple(S,allOpts,bRunner,bTest);
@@ -92,8 +94,8 @@ methods
         disp('PTB----------------------------------------------------------------')
         obj.PTB=ptb_session([],ptbOpts,0); % 10 ptb
 
-        try
         disp('CH----------------------------------------------------------------')
+        try
             obj.CH=Ch(chOpts,obj.PTB);
 
             if obj.D.bTest
@@ -104,15 +106,18 @@ methods
             disp('COUNTER-----------------------------------------------------------')
             obj.COUNTER=counter(obj.D.nTrial,obj.PTB,counterOpts);
 
+            disp('PLY---------------------------------------------------------------')
             obj.get_ply();
 
             if obj.D.bMotion
-                obj.D.numFrm = round((obj.S.durationMs./1000)./obj.PTB.ifi);
+                obj.D.numFrm = round((obj.get_duration())./obj.PTB.ifi);
             end
             disp('PTB---------------------------------------------------------------')
         catch ME
             obj.ME=ME;
+            disp(ME.message);
             obj.exit();
+            return
         end
         if ~bRunner
             obj.run();
@@ -125,6 +130,21 @@ methods
         end
     end
     function obj=parse_S(obj,S)
+        if isstruct(S)
+            obj.parse_S_struct(S);
+        elseif isa(S,'ptchs')
+            obj.parse_S_ptchs(S);
+        end
+
+    end
+    function obj=parse_S_ptchs(obj,S)
+        obj.S=S;
+        obj.bPtchs=1;
+        obj.D.nTrial=S.get_nTrial();
+        obj.D.bMotion=S.get_bMotion();
+
+    end
+    function obj=parse_S_struct(obj,S)
         obj.S=S;
         flds=fieldnames(S);
 
@@ -156,7 +176,8 @@ methods
                   'nCountDown',3    ,'isint';...
                   'countDownTime', 1,'isnumeric';...
                   'nReset',10   ,'isint';...
-                  'bHideLastInterval', bHide ,'isint'
+                  'bHideLastInterval', bHide ,'isint'; ...
+                  'loadRule', 'interval',''; ...
               };
         obj.D=parse(obj.D,dOpts,names);
         if obj.D.bTest || bTest
@@ -166,7 +187,7 @@ methods
     end
     function obj=get_ply(obj)
         % SET STIMULUS PARAMETERS %
-        obj.D.plyXYpix = bsxfun(@times,obj.S.stmXYdeg,obj.PTB.display.pixPerDegXY);
+        obj.D.plyXYpix = bsxfun(@times,obj.get_stmXYdeg(),obj.PTB.display.pixPerDegXY);
 
         % BUILD DESTINATION RECTANGLE IN MIDDLE OF DISPLAY
         obj.D.plySqrPix    = CenterRect([0 0 obj.D.plyXYpix(1) obj.D.plyXYpix(2)], obj.PTB.display.wdwXYpix);
@@ -179,9 +200,16 @@ methods
         %            fPosX+plySqrPixSizXY(1),fPosY+1,fPosX+plySqrPixSizXY(1)+25,fPosY-1; ...
         %            fPosX-plySqrPixSizXY(1),fPosY+1,fPosX-plySqrPixSizXY(1)-25,fPosY-1]';
     end
-    function obj=reset_bg(obj)
+    function stmXYdeg=get_stmXYdeg(obj)
+        if obj.bPtchs
+            stmXYdeg=obj.S.get_stmXYdeg();
+        elseif isfield(obj.S, 'stmXYdeg')
+            stmXYdeg=obj.S.stmXYdeg;
+        end
+    end
+    function obj=reset_bg(obj,tt)
         obj.make_bg();
-        obj.present_break();
+        obj.present_break(tt);
         obj.present_countdown();
     end
     function obj= make_bg(obj)
@@ -245,14 +273,21 @@ methods
         disp('RUN---------------------------------------------------------------')
         Screen('Flip', obj.PTB.wdwPtr);
         obj.make_bg();
-        obj.present_keystart;
+
+        obj.draw_aux(0);
+        obj.draw_complete();
+
+        obj.load_check('expStart',0,0);
+
+        % obj.present_keystart; XXX
         obj.present_countdown();
         for tt = 1:obj.D.nTrial
             if tt~=1 &&  mod(tt-1,obj.D.nReset)==0
-                obj.reset_bg();
+                obj.reset_bg(tt);
             end
             obj.draw_aux();
-            WaitSecs(obj.D.iti);
+            obj.load_check('trlStart',tt,0);
+            obj.wait_iti();
             obj.present_trial(tt);
             obj.get_response(tt);
             if obj.exitflag
@@ -260,10 +295,35 @@ methods
             end
         end
     end
-    function obj=present_break(obj)
+    function wait_iti(obj)
+        % tialStart
+        t=obj.D.iti-obj.loadTime;
+        if t > 0
+            WaitSecs(t);
+        end
+        obj.loadTime=0;
+    end
+    function wait_isi(obj)
+        % interval
+        t=obj.D.isi-obj.loadTime;
+        if t > 0
+            WaitSecs(t);
+        end
+        obj.loadTime=0;
+    end
+    function wait_break(obj)
+        % reset
+            t=obj.D.breakTime-obj.loadTime;
+        if t > 0
+            WaitSecs(t);
+        end
+        obj.loadTime=0;
+    end
+    function obj=present_break(obj,tt)
         obj.draw_aux(0);
         obj.draw_complete();
-        WaitSecs(obj.D.breakTime);
+        obj.load_check('reset',tt,0);
+        obj.wait_break();
     end
     function obj=present_countdown(obj)
         for c = obj.D.nCountDown:-1:1
@@ -279,6 +339,16 @@ methods
             obj.draw_complete();
             WaitSecs(obj.D.countDownTime);
         end
+    end
+    function obj=present_loading(obj)
+        obj.draw_bg();
+        for s=0:obj.sStereo
+            sz=obj.PTB.display.scrnXYpix;
+            str='Loading...';
+            Screen('SelectStereoDrawBuffer', obj.PTB.wdwPtr, s);
+            Screen('DrawText',obj.PTB.wdwPtr, str, sz(1)/2-165, sz(2)/2-5, [obj.PTB.wht],[obj.PTB.gry obj.PTB.gry obj.PTB.gry]);
+        end
+        obj.draw_complete();
     end
     function obj=present_keystart(obj)
         obj.draw_bg();
@@ -298,29 +368,76 @@ methods
             break
             elap=toc(tt);
             if obj.D.bTest & elap > 15
-                error('timeout')
+                error('timeout');
             end
         end
     end
     function  obj=present_trial(obj,tt)
         obj.t=tt;
         for int=1:obj.D.nInterval
-            obj.present_isi();
+            obj.present_isi(tt,int);
             obj.present_interval(tt,int);
         end
         if obj.D.bHideLastInterval
-            obj.present_isi();
+            obj.present_isi(0,0);
         end
     end
-    function obj=present_isi(obj)
+    function obj=present_isi(obj,tt,int)
         obj.draw_aux();
         obj.draw_complete();
-        WaitSecs(obj.D.isi);
+        obj.load_check('interval',tt,int);
+        obj.wait_isi();
     end
-    function obj=present_interval(obj,tt,i)
+    function obj=present_interval(obj,tt,intrvl)
         if endsWith(obj.expType,'IFC')
-            obj.present_interval_IFC(tt,i);
+            obj.present_interval_IFC(tt,intrvl);
         end
+    end
+    function obj=load_check(obj,loc,trl,intrvl)
+        obj.loadTime=tic;
+        if ~obj.bPtchs
+            obj.loadtime=0;
+            return
+        end
+
+        bN=isnumeric(obj.D.loadRule);
+        if bN
+            m=mod(trl-1,str2double(obj.D.loadRule));
+            loadRule='n';
+        else
+            m=1;
+            loadRule=obj.D.loadRule;
+        end
+
+        bLoad=(~bN && strcmp(loadRule,'reset') && strcmp(loc,'expStart') ) || ...
+              (~bN && strcmp(loadRule,loc)) || ...
+              ( bN && m==0);
+
+        if ~bLoad
+            return
+        end
+        obj.present_loading();
+
+        switch loadRule
+        case 'expStart'
+            trls=1:obj.get_nTrial;
+        case 'reset'
+            if trl==0; trl=1; end;
+            trls=trl:(trl+obj.D.nReset-1);
+        case 'n'
+            trls=trl:(trl+obj.D.loadRule-1);
+        case 'trlStart'
+            trls=trl;
+        end
+
+        obj.S.clear_not_needed(trls);
+
+        if strcmp(loadRule,'expStart')
+            obj.loadTime=0;
+            return
+        end
+        obj.loadTime=toc(obj.loadTime);
+
     end
     function obj=get_stm(obj,tt,int)
         if ~obj.D.bMotion
@@ -328,16 +445,26 @@ methods
         end
     end
     function obj=get_stm_static(obj,tt,int)
+        if obj.bPtchs
+            obj.get_stm_static_ptchs(tt,int);
+        else
+            obj.get_stm_static_struct(tt,int);
+        end
+        for s = 0:obj.sStereo
+            Screen('SelectStereoDrawBuffer', obj.PTB.wdwPtr, s);
+            obj.stmTex{s+1}  = Screen('MakeTexture', obj.PTB.wdwPtr, obj.stm{s+1},[],[],2);
+        end
+    end
+    function obj=get_stm_static_ptchs(obj,tt,int)
+        obj.stm=obj.S.get_interval_im(tt,int);
+    end
+    function obj=get_stm_static_struct(obj,tt,int)
         if obj.S.stdIntrvl(tt)==int-1
             obj.stm{1}=obj.S.stdIphtL(:,:,tt);
             obj.stm{2}=obj.S.stdIphtR(:,:,tt);
         else
             obj.stm{1}=obj.S.cmpIphtL(:,:,tt);
             obj.stm{2}=obj.S.cmpIphtR(:,:,tt);
-        end
-        for s = 0:obj.sStereo
-            Screen('SelectStereoDrawBuffer', obj.PTB.wdwPtr, s);
-            obj.stmTex{s+1}  = Screen('MakeTexture', obj.PTB.wdwPtr, obj.stm{s+1},[],[],2);
         end
     end
     function obj=close_stm(obj)
@@ -363,9 +490,20 @@ methods
         obj.draw_aux();
         obj.draw_stm();
         obj.draw_complete();
-        WaitSecs(obj.S.durationMs./1000);
+        WaitSecs(obj.get_duration);
         obj.close_stm();
 
+    end
+    function duration=get_duration(obj)
+        if obj.bPtchs
+            duration=obj.S.get_duration;
+        elseif isfield(obj.S,'durationMs')
+            duration=obj.S.durationMs/1000;
+        elseif isfield(obj.S,'duration')
+            duration=obj.S.duration;
+        elseif isfield(obj.S,'durationSec')
+            duration=obj.S.durationSec;
+        end
     end
     function obj=wait_for_press(obj)
         tic=tt;
@@ -376,7 +514,7 @@ methods
             end
             elap=toc(tt);
             if obj.D.bTest & elap > 15
-                error('timeout')
+                error('timeout');
             end
         end
     end
@@ -393,21 +531,44 @@ methods
                 break
             elseif strcmp(obj.KEY.OUT{2},'rsp')
                 R=obj.KEY.OUT{3};
-                std=obj.S.stdX(obj.t);
-                cmp=obj.S.cmpX(obj.t);
-                int=obj.S.cmpIntrvl(obj.t);
+                std=obj.get_std();
+                cmp=obj.get_cmp();
+                int=obj.get_int();
                 [~,answer]=obj.RSP.get_correct_2IFC(R,std,cmp,int);
                 obj.RSP.record(tt,1,R,answer);
                 break
             end
         end
     end
+    function std=get_std(obj)
+        if obj.bPtchs
+            std=obj.S.get_stdX(obj.t);
+        else
+            std=obj.S.stdX(obj.t);
+        end
+    end
+    function cmp=get_cmp(obj)
+        if obj.bPtchs
+            cmp=obj.S.get_cmpX(obj.t);
+        else
+            cmp=obj.S.cmpX(obj.t);
+        end
+    end
+    function int=get_int(obj)
+        if obj.bPtchs
+            int=obj.S.get_cmpIntrvl(obj.t);
+        else
+            int=obj.S.cmpIntrvl(obj.t);
+        end
+    end
 %% EXIT
     function obj=exit(obj)
         %returncode % 1 complete, -1 error -2 exited
-        tic
-            obj.PTB.sca;
-        toc
+        try
+            tic
+                obj.PTB.sca;
+            toc
+        end
         obj.get_return_code();
         if ~isempty(obj.ME) && ~obj.bRunner
             rethrow(obj.ME); 

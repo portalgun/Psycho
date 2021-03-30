@@ -22,15 +22,15 @@ properties
 
     refreshRate
     bitsOut
-    bAlphaBlendingOn=0;
-    bDataPixxOn=0;
-    textSize=30;
-    textFont;
+    bAlphaBlendingOn=0
+    bDataPixxOn=0
+    textSize=30
+    textFont
     ifi
-    fps;
-    DC;
+    fps
+    DC
 
-    HMD;
+    HMD
 
 end
 methods

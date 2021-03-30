@@ -11,7 +11,6 @@ properties
 end
 methods
     function obj=DspDispWin(trgtDSP,display,winOpts,trgtDispORwin,trgtOpts,focDispORwin,focOpts)
-
         obj.win=Win3D(display,winOpts);
         obj.trgt=PointDispWin3D(display,obj.win,trgtOpts,trgtDispORwin);
         obj.win=obj.trgt.win;
