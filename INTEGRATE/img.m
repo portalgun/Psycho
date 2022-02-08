@@ -183,7 +183,7 @@ methods
     %    end
     %end
     %function obj=apply(fld)
-    %    bMovieFld=['b' makeUpperCase(fld(1)) fld(2:end) 'Movie'];
+    %    bMovieFld=['b' Str.Alph.Upper(fld(1)) fld(2:end) 'Movie'];
     %    for s=1:obj.bStereo+1
     %        thing=ret(obj.(fld));
     %        self=ret(obj.self{s});
@@ -215,7 +215,7 @@ methods
             if bMaskMovie
                 frames=[frames obj.maskSize{s}(3)]
             end
-            if obj.bMovie && ~isuniform(frames)
+            if obj.bMovie && ~Set.isUniform(frames)
                 error('Motion dimensions are off')
             elseif obj.bMovie
                 obj.nFrames{s}=frames(1)

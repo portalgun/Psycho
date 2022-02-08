@@ -22,27 +22,15 @@ properties
     vrgXY
     vrsXY
 
-%% COMMON3D
-    %LExyz=-0.065/2
-    %RExyz=0.065/2
-    %IPDm=0.065
-    %IppXm
-    %IppYm
-    %IppZm
-    %IppXpix
-    %IppYpix
-
-    %wdwXYpix
-    %scrnCtr
-    %bStereo
-
-    %pixPerDeg
-    %pixPerM
-    %MperDeg
-
+    LExyz
+    RExyz
+    IppZm
 end
 properties(Hidden = true)
     bPointNeedsInit=1;
+end
+properties(Access=private)
+    Initiated=[];
 end
 methods
     function obj=Point3D(ptbORdisp,Opts)
@@ -94,7 +82,7 @@ methods
         elseif ~bVs & ~bVr &  bM  & ~bR & ~bP
             obj.set_posXYZm();
         elseif ~bVs & ~bVr & ~bM  & bR & ~bP
-            obj.posXYZm=[0 0 obj.IppZm];
+            obj.posXYZm=[0 0 obj.VDisp.obj.VDisp.Zm];
             obj.set_posXYpixRaw();
         elseif ~bVs & ~bVr & ~bM  & ~bR & bP
             obj.set_posXYpix();
@@ -106,36 +94,87 @@ methods
             obj.ELIND.update_point_status(obj.t,obj.i,1);
         end
     end
-%%
-   function obj=xyz_to_raw_pix(obj)
+    function out=get.LExyz(obj)
+        if isempty(obj.LExyz)
+            out=obj.VDisp.SubjInfo.LExyz;
+        else
+            out=obj.LExyz;
+        end
+    end
+    function out=get.RExyz(obj)
+        if isempty(obj.RExyz)
+            out=obj.VDisp.SubjInfo.RExyz;
+        else
+            out=obj.RExyz;
+        end
+    end
+    function out=get.IppZm(obj)
+        if isempty(obj.IppZm)
+            out=obj.VDisp.Zm;
+        else
+            out=obj.IppZm;
+        end
+    end
+    function obj=xyz_to_raw_pix(obj)
         xyz=[obj.posXYZm(1:2),0];
 
-        [IppXm,IppYm,IppZm]=obj.get_pp();
-        [IppXpix,IppYpix]=obj.get_pp_pix();
-        [obj.posXYpixRaw]=XYZ.back_project(obj.LExyz,obj.RExyz,obj.posXYZm,IppXm,IppYm,IppZm,IppXpix,IppYpix);
-   end
-   function obj=raw_pix_to_xyz(obj)
-        [IppXm,IppYm,IppZm]=obj.get_pp();
-        [IppXpix,IppYpix]=obj.get_pp_pix();
-        posXYZmRaw=forward(obj.LExyz,obj.RExyz,posPixRaw,posPixRaw,IppXm,IppYm,IppZm,IppXpix,IppYpix);
+        [L,R]=XYZ.back_project(obj.LExyz, ...
+                               obj.RExyz, ...
+                               obj.posXYZm,...
+                               obj.VDisp.PP.C.Xm, ...
+                               obj.VDisp.PP.C.Ym, ...
+                               obj.IppZm, ...
+                               obj.VDisp.PP.Xpix, ...
+                               obj.VDisp.PP.Ypix);
+        obj.posXYpixRaw=fliplr(L);
+    end
+    function obj=raw_pix_to_xyz(obj)
+
+        scrnCtr=(fliplr(obj.VDisp.XYpix)./2);
+        posXYZmRaw=XYZ.forward_project(obj.LExyz,...
+                                       obj.RExyz,...
+                                       obj.posPixRaw{1}-scrnCtr,...
+                                       obj.posPixRaw{2}-scrnCtr,...
+                                       obj.VDisp.PP.C.Xm,...
+                                       obj.VDisp.PP.C.Ym,...
+                                       obj.IppZm,...
+                                       obj.VDisp.PP.Xpix,...
+                                       obj.VDisp.PP.Ypix);
+
         obj.posXYZm=[poxXYZmRaw(1:2) obj.posXYZm(3)];
     end
 %%
     function obj=pix_to_xyz(obj)
-        [IppXm,IppYm,IppZm]=obj.get_pp();
-        [IppXpix,IppYpix]=obj.get_pp_pix();
-        obj.posXYZm=forward_project(obj.LExyz,obj.RExyz,obj.posPix{1},posPix{2},IppXm,IppYm,IppZm,IppXpix,IppYpix);
+        obj.posXYZm=XYZ.forward_project(obj.LExyz, ...
+                                        obj.RExyz,...
+                                        obj.posXYpix{1},...
+                                        obj.posXYpix{2},...
+                                        obj.VDisp.PP.C.Xm,...
+                                        obj.VDisp.PP.C.Ym,...
+                                        obj.IppZm,...
+                                        obj.VDisp.PP.Xpix,...
+                                        obj.VDisp.PP.Ypix);
     end
     function obj=xyz_to_pix(obj)
-        [IppXm,IppYm,IppZm]=obj.get_pp();
-        [IppXpix,IppYpix]=obj.get_pp_pix();
-        [obj.posXYpix{1},obj.posXYpix{2}] =XYZ.back_project(obj.LExyz,obj.RExyz,obj.posXYZm,IppXm,IppYm,IppZm,IppXpix,IppYpix);
+        [L,R]=XYZ.back_project(obj.LExyz,...
+                               obj.RExyz, ...
+                               obj.posXYZm, ...
+                               obj.VDisp.PP.C.Xm, ...
+                               obj.VDisp.PP.C.Ym, ...
+                               obj.IppZm, ...
+                               obj.VDisp.PP.Xpix, ...
+                               obj.VDisp.PP.Ypix);
+
+        %[L,R]=obj.VDisp.PP.back_project(obj.posXYZm);
+        obj.posXYpix{1}=fliplr(L);
+        obj.posXYpix{2}=fliplr(R);
     end
     function obj=xyz_to_vrg_vrs(obj)
-        [obj.vrgXY,obj.vrsXY]=XYZ.get_vrg_vrs_map(obj.posXYZm,obj.LExyz,obj.RExyz);
+        [obj.vrgXY,obj.vrsXY]=XYZ.toVrgAngle(obj.posXYZm,obj.LExyz,obj.RExyz);
     end
     function obj=vrg_vrs_to_xyz(obj)
-        obj.posXYZm=XYZ.get_vrg_vrs_map(obj.vrgXY,obj.vrsXY,obj.LExyz,obj.RExyz);
+        %obj.posXYZm=XYZ.get_vrg_vrs(obj.vrgXY,obj.vrsXY,obj.VDisp.SubjInfo.LExyz,obj.VDisp.SubjInfo.RExyz);
+        %% XXX
 
     end
 
@@ -172,6 +211,7 @@ methods
         if exist('val','var') && ~isempty(val)
             obj.posXYpixRaw=val;
         end
+
         obj.raw_to_xyz();
         obj.xyz_to_pix();
         obj.xyz_to_vrg_vrs_to();
@@ -197,14 +237,14 @@ methods(Static = true)
     function out=input_parser_all(Opts)
         p=Common3D.get_parseOpts();
         [OptsC,OptsP]=structSplit(Opts,p(:,1));
-        outC=parse([],OptsC,p);
+        outC=Args.parse([],p,OptsC);
 
         outP=Point3D.input_parser(OptsP);
         out=structMerge(outP,outS);
     end
     function out=input_parser(Opts)
         p=Point3D.get_parseOpts;
-        out=parse([],Opts,p);
+        out=Args.parse([],p,Opts);
         bXYZ=~isempty(out.posXYZm);
         bVrs=~isempty(out.vrsXY);
         bVrg=~isempty(out.vrgXY);
@@ -230,8 +270,8 @@ methods(Static = true)
               ;'posXYpixRaw', [] ...
               ;'posXYpix', [] ...
               ;'IppZm',[] ...
-              ;'LExyz',[] ...
-              ;'RExyz',[] ...
+              ;'LExyz',[]...
+              ;'RExyz',[]...
           };
     end
 end

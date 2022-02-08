@@ -55,7 +55,7 @@ methods
         end
 
         bBoth=0;
-        color=rowVec(color);
+        color=Vec.row(color);
         if bHex
             error('write hex code');
         elseif numel(color) == 1

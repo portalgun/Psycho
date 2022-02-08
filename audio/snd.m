@@ -5,10 +5,10 @@ properties
 end
 methods
     function obj=get_device(deviceType,deviceIndex)
-        if ~isvar('deviceType')
+        if ~exist('deviceType','var') || isempty(deviceType)
             deviceType=[];
         end
-        if ~isvar('deviceIndex')
+        if ~exist('deviceIndex','var') || isempty(deviceIndex)
             deviceIndex=[];
         end
         %devicetype by priority
@@ -22,7 +22,7 @@ methods
         %5  mac     coreaudio
         devices=PsychPortAudio('GetDevices' ,deviceType, deviceIndex);
         PsychPortAudio('Close');
-        [out,ind]=basicSelect({devices.DeviceName});
+        [out,ind]=Input.select({devices.DeviceName});
         deviceIndex=ind-1;
         obj.device=PsychPortAudio('GetDevices',[],deviceIndex)
         PsychPortAudio('Close');

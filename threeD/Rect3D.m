@@ -18,7 +18,7 @@ methods
         ctrRC=flipLR(obj.posXYpix{s});
         h=obj.WHpix{s}(2);
         w=obj.WHpix{s}(1);
-        obj.shape{s}=rect(ctrRC,h,w);
+        obj.shape{s}=Rec.rect(ctrRC,h,w);
     end
 end
 end

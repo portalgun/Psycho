@@ -1,15 +1,15 @@
 classdef Shape3D < handle & Common3D & Point3D
 % all about getting object dimensions around point
 properties
-    shape
 
     WHm
     WHpix
-    WHdeg
     WHdegRaw % assuming cnetered
+    WHdeg    % vergence proper
 
     % T for set time in shape4D
 
+    shape
     rect
     relRec
     relPosPRC
@@ -23,23 +23,6 @@ properties
     %vrsXY
     %
 
-%% COMMON3D
-    %LExyz=-0.065/2
-    %RExyz=0.065/2
-    %IPDm=0.065
-    %IppXm
-    %IppYm
-    %IppZm
-    %IppXpix
-    %IppYpix
-
-    %wdwXYpix
-    %scrnCtr
-    %bStereo
-
-    %pixPerDeg
-    %pixPerM
-    %MperDeg
 end
 properties(Dependent)
     WHbase
@@ -60,13 +43,10 @@ methods
         obj.update_display(ptbORdisp);
         obj.init_shape();
     end
-    function obj=input_parser_Shape3D(obj,Opts)
-        out=Shape3D.input_parser_all(Opts);
-        flds=fieldnames(out);
-        for i = 1:length(flds)
-            fld=flds{i};
-            obj.(fld)=out.(fld);
-        end
+    function input_parser_Shape3D(obj,Opts)
+        p=[Point3D.get_parseOpts();...
+           Shape3D.get_parseOpts()];
+        obj=Args.parse(obj,p,Opts);
     end
     function obj=init_shape(obj)
         bR=~isempty(obj.WHdegRaw);
@@ -77,12 +57,12 @@ methods
             return
         elseif bR && ~bD && ~bM && ~bP
             obj.set_WHdegRaw();
-        elseif ~bR && bD && ~bM && ~bP
-            obj.set_WHdeg();
         elseif  ~bR && ~bD && bM && ~bP
             obj.set_WHm();
         elseif ~bR && ~bD && ~bM && bP
             obj.set_WHpix();
+        elseif ~bR && bD && ~bM && ~bP
+            obj.set_WHdeg();
         else
             error('unhanled Point3D combination. write code?');
         end
@@ -125,6 +105,7 @@ methods
     end
 %%
     function obj=update_WHdegRaw_from_WHdeg(obj)
+        % XXX
         error('write code');
         %obj.WHdegRaw =  % TODO, really hard
         %TODO really hard
@@ -139,7 +120,7 @@ methods
         end
         obj.update_WHm_from_WHdegRaw();
         obj.update_WHpix_from_WHm();
-        obj.update_WHdeg_from_WHm(obj);
+        %obj.update_WHdeg_from_WHm(obj);
     end
     function obj=set_WHm(obj,val)
         if exist('val','var') && ~isempty(val)
@@ -173,8 +154,8 @@ methods
         end
         end
 
-        obj.update_WHdegRaw_fromWHdeg();
-        obj.update_WHm_fromWHdegRaw();
+        obj.update_WHdegRaw_from_WHdeg();
+        obj.update_WHm_from_WHdegRaw();
         obj.update_WHpix_from_WHm();
     end
 %%
@@ -208,6 +189,7 @@ methods(Static = true)
 
 % RELATIVE RECTS
     function [x,y]=getXYrel(relRec,relPosPRC,rect,padXYpix)
+        % I/O -- 1
         if relPosPRC(1)=='I'
             [x,y]=Shape3D.getXYrelIn(relRec,relPosPRC(2:end),rect,padXYpix);
         elseif relPosPRC(1)=='O'
@@ -244,41 +226,32 @@ methods(Static = true)
             x=relRec(1)-padXYpix(1)-rect(3);
         elseif relPosRC(2)=='R'
             x=relRec(3)+padXYpix(1);
-        elseif relPosRC(2)=='M'
+        elseif relPosRC(2)=='M' || relPosRC(2)=='C'
             x=relRec(1)+(relRec(3)-relRec(1))/2-rect(3)/2;
+        elseif relPosRC(2)=='B' %Right justified
+            Wrel=(relRec(3)-relRec(1));
+            W=(rect(3)-rect(1));
+            x=relRec(1)-W+Wrel;
         end
     end
-    function out=input_parser_all(Opts)
-        p=Common3D.get_parseOpts();
-        [OptsC,Opts]=structSplit(Opts,p(:,1));
-        outC=parse([],OptsC,p);
+    %function out=input_parser(Opts)
+    %    p=Shape3D.get_parseOpts();
+    %    out=Args.parse([],p,Opts);
 
-        p=Point3D.get_parseOpts();
-        [OptsP,OptsS]=structSplit(Opts,p(:,1));
-        outP=Point3D.input_parser(OptsP);
+    %    out=Args.parse([],p,Opts);
+    %    bXYZ=~isempty(out.WHm);
+    %    bPix=~isempty(out.WHpix);
+    %    bRaw=~isempty(out.WHdegRaw);
+    %    bDeg=~isempty(out.WHdeg);
 
-
-        outS=Shape3D.input_parser(OptsS);
-        out=structMerge(outC,outP,outS);
-    end
-    function out=input_parser(Opts)
-        p=Shape3D.get_parseOpts();
-        out=parse([],Opts,p);
-
-        out=parse([],Opts,p);
-        bXYZ=~isempty(out.WHm);
-        bPix=~isempty(out.WHpix);
-        bRaw=~isempty(out.WHdegRaw);
-        bDeg=~isempty(out.WHdeg);
-
-        modes = bXYZ + bDeg + bPix;
-        if sum(modes) > 1
-            error('Only one WH of xyz, vrg, or, pix can be defined');
-        end
-        if bRaw & bXYZ
-            error('Only one WH of xyz or raw can be defined');
-        end
-    end
+    %    modes = bXYZ + bDeg + bPix;
+    %    if sum(modes) > 1
+    %        error('Only one WH of xyz, vrg, or, pix can be defined');
+    %    end
+    %    if bRaw & bXYZ
+    %        error('Only one WH of xyz or raw can be defined');
+    %    end
+    %end
     function p=get_parseOpts()
         p={...
                'WHdegRaw',[],...

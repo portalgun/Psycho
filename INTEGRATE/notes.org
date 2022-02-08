@@ -1,0 +1,11 @@
+#STM
+| TYpe  | class |
+|-------+-------|
+| ch    |       |
+| shape |       |
+| img   |       |
+| txt   |       |
+| mask  |       |
+| win   |       |
+| plate |       |
+

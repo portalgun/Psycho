@@ -9,9 +9,9 @@ chvol=[100 100];
 
 PsychPortAudio('Close');
 % select device
-if ~isvar('deviceIndex')
+if ~exist('deviceIndex','var') || isempty(deviceIndex)
     devices=PsychPortAudio('GetDevices' ,type);
-    [out,ind]=basicSelect({devices.DeviceName});
+    [out,ind]=Input.select({devices.DeviceName});
     deviceIndex=ind-1
     PsychPortAudio('Close');
 end

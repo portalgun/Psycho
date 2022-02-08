@@ -1,0 +1,575 @@
+info for each Opt
+
+plate
+
+empty type
+
+list generates cell calling on class for info
+
+switch use for type
+bUpdate struct
+
+stm trajectories for szXYdeg ctrXYdeg
+return updates all
+no sizemult etc.
+
+play_intro command
+play_instructions command
+
+try loop
+    print message to screen, message box
+    message box
+
+key reset to default
+pos - 3 fields pix, m, deg
+        switch units
+
+* Design
+** patches
+*** imap/in directory structure
+[hash]:
+    smp -> smp.mat (indeces, no patches)
+    crp -> buf_img_ind (ptch, cropped buffer regions)
+[prj]:
+    raw;
+        what could be used: {symlinks to buf}
+    cropped; (crp)
+        3D+ (flattened/added disparity/speed)
+    averaged; (avg)
+    fixed; (fix)
+        rms/dc/mask ( things that don't need to be permanent)
+        exp
+        tst; (pck)
+        {symlinks to raw/cropped/averaged/fixed}
+            Tst/Tst_blk (pthchs)
+        trn: (pck)
+            {symlinks to raw/cropped/fixed}
+            Trn/Trn_blk (ptchs)
+*** Info
+basic
+    source chain
+    n images
+    date created
+    date updated
+    masks
+
+[hash]
+    maps available
+[prj]/raw
+    criterion for selection
+[prj]/cropped
+    flattened
+    disparity added
+    speed added
+[prj]/averaged
+    averaged
+[prj]/fixed (bonus)
+    rms
+    dc
+    mask
+[exp]/trn
+[exp]/tst
+    blocked
+    chunked
+    indexed
+    additional stats ran
+[exp_dmp]/trn
+[exp_dmp]/tst
+    from experiment
+    deleted on verification
+
+*** masks
+mono/bino
+parts
+depth ordering (criterion on parts and mono/bino)
+fg/bg (criterion on depth ordering)
+
+*** Prj naming
+[hash]           PRJ_(LRSI_NAT_)
+[prj]/[raw]      PRJ_(LRSI_NAT_)
+[prj]/cropped    PRJ_(LRSI_NAT_)2D
+[prj]/averaged   PRJ_(LRSI_NAT_)2D*
+[prj]/fixed      PRJ_(LRSI_NAT_)2D*_3-1
+[prj]/exp        PRJ_(LRSI_NAT_)2D*_PrbA_3-1
+
+PRJ is indicative of parameters used to generate STIMULI
+subprojects are indicative of other changes, usually fix (also psuedo-pass)
+exp is indicative of procedure (pro)
+*** ptchs
+imgInd
+ptchind
+stats
+
+% rule (applies to 'exp')
+    patches
+        A
+    patches_chunks
+        A000 <- main chunk
+        A001
+        A002
+    image %by image
+        B001
+    load_patch
+        L001_0001.m
+    load_patch_chunks
+    load_maps
+    load_maps_chunks
+*** trntst < ptchs
+prj name
+block number
+srtdIntervalInd (eg 1 = stds 2 = cmp)
+srtdTrialInd    (BEFORE shuffling)
+Xname=(fld in stats)
+expInd (1-900)
+blkInd (1-180)
+chunk_loaded
+**** psycho
+    Ptch
+    Ptchs
+   
+
+[db.IN] < ptchs
+    fnames
+    subclasses
+% init_rule
+    'all'         % all at startup
+    'by_stim'
+    'by_interval'
+    'none'        % preprocessed
+    [n]           % every n
+
+GENERATION
+    PTCH
+        save maps
+        save individual patches
+    PTCHS
+        get rule
+        save all/chunks etc
+
+** EVENTS
+| owner       | event           | listener   | done |
+|-------------+-----------------+------------+------|
+| key_capture |                 |            | x    |
+|             | KeyPressed      |            | -    |
+|             |                 | Time       |      |
+|             |                 | key_parser |      |
+| key_set     |                 |            |      |
+|             | RecordChanged   |            | x    |
+|             |                 | Time       | x    |
+|             | KeysChanged     |            |      |
+| CMD         |                 |            |      |
+|             | NextTrial       |            | -    |
+|             |                 | Exp        | x    |
+|             | StartExp        |            | -    |
+|             |                 | Exp        | x    |
+|             | GoToTrial       |            | -    |
+|             |                 | Exp        | x    |
+| Stm         |                 |            |      |
+|             | durationChanged |            |      |
+|             |                 | Exp        | x    |
+| Exp         |                 |            | x    |
+|             | IntervalStart   |            | -    |
+|             |                 | psycho     | x    |
+** COMMAND HIERARCHY
+KEY  -> is valid key?           ->  KEY_PRESSED    (key)
+CMD  -> is valid cmd?           ->  CMD_ENTERED    (cmd,value)
+META -> is valid value          ->  PARAM_CHANGING (cmd,value,hooks)
+CMDR -> change value -> PARAM_CHANGED
+     -> run hook     -> HOOKS_RAN
+
+** STIM CALL ORDER
+EXP -> TrialStart
+psycho.run_Trial
+    for psycho.call_order
+        call_trial
+            init
+            check
+            update
+                shape
+                tex
+            draw
+
+
+    psycho->Ecall_trial
+NewInterval
+    psycho->call_interval
+** PARSE/INIT ORDER
+psycho(def_pso)
+    def_pso + met_pso -> param_meta_parser(param_reader?,meta_param(meta_param_constructor)) % XXX
+    {    ptb
+            display info -> stmli
+         exp
+            def_stmli
+    } -> PARAM, META, PTB, EXP, def_stmli
+    def_stmli + met_stmli -> stmli_meta_parser(stmli_param_construct....) % XXX
+    {    key
+         rsp
+    }
+
+** STM index init & opts
+trlInd needs to be fixed
+
+
+cellstruct
+1. expand
+2. apply trial inds
+3. find which elements are the same
+4. deterine which el should remain in stack throughout
+5. deterine which el should be initialized at beginning of trial
+6. determine which el should be initiaized at intervals (for movies)
+7. determine when to close (ideally at end of trial after last viewing)
+
+For each OPTIONS
+    single -> init before
+    ntrial -> init at beginning, close at end
+    entrials -> how to label?
+
+** Break
+break class
+subclass of stimuli?
+has own intervals
+trial with own intervals
+** FIN
+subclass of stimuli?
+end instances
+what should be drawn at end
+** EL
+STM basic
+    flat after n
+    expands takes from win,ptchs,stmplate,ch
+expand el to other subclasses
+    other type of configuratio
+** STM structure
+[Parent]
+    Stm{i}
+        Plate
+        Ch
+            reticle
+        Ptch
+            patches
+                win
+                mask
+                rms etc.
+
+** gen_param
+b_private
+** cmd
+compiles key dicts
+switches context by
+    NewFocus
+events
+    CmdEntered
+
+modes=struct('n','e','i');
+mode;
+
+cmd history
+
+** meta
+    translates/validates cmd
+    updates itself upon change
+    sets params
+
+events
+    ParamChanged
+** Psycho
+initializer
+
+construct
+    parser -> meta, param
+    ptb
+    key
+    stm
+    stack
+    exp
+start_exp
+activate menu
+save
+exit
+pause (overrides exp)
+
+keydef (overrides exp)
+
+** param
+stmli class
+
+handle pso
+** def
+PSO
+PRJ_(LRSI_NAT_)2D*_PrbA_3-1_hostname
+
+PRO
+3-1 defined here
+#PRJ_(LRSI_NAT_)2D*_PrbA defined here
+#TODO 0th interval defaults to limited by default
+nInterval & ntrl determined from patches
+#(empty), -,all are same thing
+
+
+*** parts
+**** rsp
+FC
+Adj
+**** key
+normal
+***** key_parts
+select
+limited
+
+flags
+
+FC_NF
+FC_LR
+FC_UD
+FC_LRUD
+FC_NF
+
+(Needs anchor 1 (anchor 2))
+Adj_All
+Adj_NF_CART
+Adj_NF_C
+Adj_NF_anchor
+Adj_NF_naive
+Adj_NF_naive
+**** rest
+standardCountdown
+***** rest_parts
+bg
+bgPlate
+bgPlateCh
+bgPlateChCountdown
+
+**** fin
+**** intro
+**** instr
+**** bg < el
+**** plate < el
+**** counter < el
+**** ch < el
+** Handle
+all isa
+list subclasses
+* TODO
+v.1
+backdrop in stmli?
+where to describe subprojects?
+** PRIORITY
+ptchs/patches
+    win
+duration
+    0 num -1
+stm index
+    n
+stm call order
+stack
+psycho events
+** META
+parse self option
+groups
+expands by field
+    {stm,  nStm; ... % dim 1
+     ptch, ntrl; ...  % dim 2
+     pthc, ninterval} %dim3
+Trial based
+    bg
+    plate
+interval based
+    stm
+
+nTrl nIntrvl
+1x1 - applies to all intervals and trials
+    BG
+    plate
+nTrl x 1 - all intervals, applied differnetly to trials
+1 X nIntrvl - all trials, applied differently to intervals
+[] - does not apply
+
+*** to add
+
+Ptch
+    loadEvery
+    indTrial
+
+
+udIShapeInd          % [nTrl nIntervl] XXX need to init/expand
+udITexInd            % [nTrl nIntervl] XXX need to init/expand
+
+udTShapeInd          % [nTrl] XXX need to init/expand
+udTTexInd            % [nTrl] XXX need to init/expand
+
+
+key
+    *tilde*
+    base_keymap
+        Q exit
+        menu
+    interval_keymaps
+    rsp_keymap
+    break_keymap
+    instr_keymap
+    intro_keymap
+    blank_keymap
+    brecord_keysets
+** Other
+trlSeen % XXX first flip
+timing % XXX starts with flip & ends with key press
+GetSec
+
+bviewed
+move to next unviewed
+move to beginning
+move to end
+Exp internal and trialOrder/interval trial index
+    external is only viewable by exp
+Timer
+key_parse/CMD? subscribe to exp newInterval
+key_parse/CMD? response
+rsp is last interval with duration -1
+    specific keymap with next interval
+    adjust just has last interval
+if only 1 stm, select it
+* MILESTONES
+** v.1
+time
+counters
+parsing
+trials
+stack
+keys
+stm
+no patches
+backdrop
+** v.2
+patches
+quit prompt
+rests (subset of stmli)?
+selected
+help
+end
+
+switching between repetitions
+*** Info
+
+title top left
+selected is also displayed top/below stim
+locked is grayed out
+**** message
+listens to psycho for messages
+Press '?' for help
+location - bottom left
+**** indexCounter
+follows internal
+**** trialCounter
+follows external
+type
+location - bottom right
+**** selected
+location
+**** flag
+type
+location
+*** Test Keys
+**** Menu
+***** primary
+pause Cz
+redraw_interval r
+redraw_trial R
+play P
+view v_
+change c_
+go [num]g
+prompt :
+\] escape
+/ find
+
+n('j')   = 'down';
+n('k')   = 'up';
+n('l')   = 'right';
+
+next n
+previous p
+
+***** Secondary
+hide_view v
+rsp r
+stm s
+1. select mode
+    left
+    right
+    up
+    down
+    enter
+2. whole stim mode
+    swap_plane_trial p
+
+    view v
+    change c
+        patch
+        ch
+        mask
+        win
+sort o
+trial
+interval
+shuffle_interval
+shuffle_trial
+stat
+plate p
+ptb   P
+exp e
+counter c
+break b
+instr
+intro
+break
+blank
+flag
+bg
+** v.3
+*** prompt
+emacs
+height
+    increment
+    quarter
+    fullscreen
+**** commands
+testmode 1
+reset_experiment
+reset_flag
+reset_params
+qw _
+q!
+qw! _
+$matlab command
+$$shell command
+
+*** E
+** v.4
+prompt
+emacs keys
+basic prompt commands
+** v.5
+nested param & meta
+multilpe stim
+brackets for selected stim
+* Move
+stride - overlap between pixels
+
+pseudopass  % mixed stds and cmp
+partialpass % only some
+
+** Aliases
+anything with a long name
+- projects
+- instances
+- patch sets
+
+definition file
+associated project
+** Definition files
+_expVariables
+referenced in info
+** sharable python
+__init__.py -> pycache
+io.py
+setuptools
