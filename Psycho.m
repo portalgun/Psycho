@@ -1,5 +1,4 @@
 classdef Psycho < handle & Psycho_hooks
-% TODO sort by depenency
 properties
     D
     initflag=-1 % -1 not yet, 0 initializing, 1 initialized
@@ -7,6 +6,7 @@ properties
 end
 properties(Hidden=true)
     ptch
+    bInc
 end
 %properties(Access=?PtchsViewer)
 properties
@@ -20,6 +20,8 @@ properties
 
     names
     nums
+    priority
+    bUpdatePriority=true
 end
 properties(Access=private)
     PsyInt
@@ -70,6 +72,7 @@ methods
 
             % GET NAME AND NUM
             mtch=regexp(fld,'(^[a-zA-Z0-9_]+)\.([0-9])$','tokens','once');
+
             if ~isempty(mtch)
                 name=mtch{1};
                 num=str2double(mtch{2});
@@ -96,14 +99,14 @@ methods
         obj.dispSep('AUX');
         for i = 1:length(obj.names)
             name=obj.names{i};
-            n=obj.nums(ismember(name,obj.names));
+            n=obj.nums(ismember(obj.names,name));
             for iA = 1:n
                 obj.A.(name){iA}.init();
             end
         end
         obj.dispSep('AUX_END');
     end
-    function get_rect(obj,name,num)
+    function val=get_rect(obj,name,num)
         if ~ismember(name,fieldnames(obj.Viewer.Psy.A))
             error([ 'PsyEl ' name ' not yet initialized']);
         end
@@ -131,6 +134,9 @@ methods
         if isempty(num)
             num=1;
         end
+        if ~iscell(XYpix) && numel(XYpix)==2
+            XYpix={XYpix XYpix};
+        end
         obj.A.(name){num}.XYpix=XYpix;
         obj.A.(name){num}.WHpix=WHpix;
     end
@@ -140,46 +146,76 @@ methods
         end
         obj.A.(name){num}.duration=duration;
     end
+    function update_priority(obj,name,num,priority)
+        if isempty(num)
+            num=1;
+        end
+        if ~isequal(obj.A.(name){num}.priority,priority)
+            obj.A.(name){num}.priority=priority;
+            obj.bUpdatePriority=true;
+        end
+    end
     function lists=apply_infos(obj)
         for i = 1:length(obj.names)
             name=obj.names{i};
-            n=obj.nums(ismember(name,obj.names));
+            n=obj.nums(ismember(obj.names,name));
             for iA = 1:n
                 opts=obj.A.(name){iA}.stringOpts;
                 if ~isempty(opts.list)
                     txt=obj.Viewer.Info.format(opts.list, opts);
-                    obj.A.(name){i}.Obj.TEXT=txt;
+                    obj.A.(name){iA}.Obj.text=txt{1};
+                    obj.A.(name){iA}.bRectUpdate=true;
                 end
             end
         end
     end
 %% DRAW
-    function draw_subInt(obj,opts)
+    function draw(obj,opts)
+        if obj.bUpdatePriority
+            obj.get_priorities();
+            obj.bUpdatePriority=false;
+        end
         obj.subInt_fun(opts,'reset');
         obj.subInt_fun(opts,'draw');
+        obj.PTB.flip();
         obj.subInt_fun(opts,'close');
     end
-    function subInt_fun(obj,opts,prp)
-        for i = 1:length(opts.(prp))
-            name=opts.(prp){i};
-            n=obj.nums(ismember(name,obj.names));
+    function P=get_priorities(obj)
+        P=cell(sum(obj.nums),3);
+        c=0;
+        for i = 1:length(obj.names)
+            name=obj.names{i};
+            n=obj.nums(ismember(obj.names,name));
             for iA = 1:n
-                obj.A.(name){iA}.(prp)();
+                c=c+1;
+                P(c,:)={obj.A.(name){iA}.priority, name, iA};
+            end
+        end
+        zind=vertcat(P{:,1})==0;
+        P0=P(zind,:);
+        P=P(~zind,:);
+        [~,ind]=sort(vertcat(P{:,1}));
+        P=[P(ind,:); P0];
+        obj.priority=P(:,2:end);
+    end
+    function subInt_fun(obj,opts,prp)
+        for i = 1:size(obj.priority,1)
+            name=obj.priority{i,1};
+            num= obj.priority{i,2};
+            if ismember(name,opts.(prp)) %% Slowish
+                obj.A.(name){num}.(prp)();
             end
         end
     end
-%%
-%% FLIP
-    function obj=draw_complete(obj)
-        Screen('DrawingFinished', obj.PTB.wdwPtr,false);
-    end
-    function obj=draw_complete_inc(obj)
-        Screen('DrawingFinished', obj.PTB.wdwPtr,true);
-    end
-    function flip(obj,when)
-        if nargin < 1; when=[]; end
-        Screen('Flip', obj.PTB.wdwPtr,when,false);
-    end
+    %function subInt_fun(obj,opts,prp,P)
+    %    for i = 1:length(opts.(prp))
+    %        name=opts.(prp){i};
+    %        n=obj.nums(ismember(name,obj.names));
+    %        for iA = 1:n
+    %            obj.A.(name){iA}.(prp)();
+    %        end
+    %    end
+    %end
 %% UTIL
 end
 methods(Static)

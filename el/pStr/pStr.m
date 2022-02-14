@@ -8,70 +8,38 @@ properties
 
     font
     fontSize
+    bMonoSpace
+
+    % TEXT
     fgColor
     bgColor
     padXY
-    rectRaw
-    rect
-
-    offrect
-    xAdvance
-
     lineSpacing
-    borderColor
-    borderWidth
-    borderPad
-    borderFill
+
+    % BOX
+    borderColor  % outer box
+    borderFill   % inner box
+    borderWidth  %
+    borderPadXY    %inner border XY
 
 
-    bHRel
-    bWRel
-
-    % THESE 2
-    relPosHW % TODO
-    relXYctr
-    % OR
-    relRec %position relative to another rect (not rectRaw)
-
-    relPosPRC % In/Out Top/Bottom/Middle L/R/M
-
-    % COMPUTED
-    xRel
-    yRel
-    wRel
-    hRel
-
-    x
-    y
+    %- psyElObj
 end
 properties(Hidden=true)
-    TEXT=''
+    setH
+    setW
+    setX
+    setY
+
+    TEXT='' % FINAL
+    RECT    % FINAL
 
     nlines
-    lineh % height of individual line
-    start % where in Y to start drawing multiple
     borderRect % width of
-    fullWidth % width of multiple line box
-    Y %ystart of line
-    X %xstart of line
-    W %width of lines
-    H %height of lines
-    RECT
+    Wind %width of lines
+    Hind %height of lines
 
-    wdwPtr
-    sStereo
-    scrnXYpix
-
-    oldFont
-    oldFontSize
-
-    bFont
-    bSize
     exitflag
-end
-properties(Hidden)
-    Viewer
-    Ptb
 end
 methods
     function obj=pStr(Opts,ptb,Viewer,text)
@@ -87,7 +55,7 @@ methods
         obj.update_ptb(ptb);
         obj.parser(Opts);
     end
-    function obj=parser(obj,Opts,ptb)
+    function obj=parser(obj,Opts)
         P=obj.getP();
 
         fg=obj.Ptb.wht;
@@ -95,6 +63,11 @@ methods
         g=obj.Ptb.gry;
 
         obj=Args.parse(obj,P,Opts);
+        obj.setX=obj.X;
+        obj.setY=obj.Y;
+        obj.setW=obj.W;
+        obj.setH=obj.H;
+
         if isempty(obj.relRec)
             obj.relRec=[0 0 obj.Ptb.VDisp.WHpix];
         end
@@ -110,12 +83,15 @@ methods
         if isempty(obj.cursorFillColor)
             obj.cursorFillColor=g;
         end
+
+        %FONT
         if isempty(obj.font)
             obj.font=obj.Ptb.textFont;
         end
         if isempty(obj.fontSize)
             obj.fontSize=obj.Ptb.textSize;
         end
+        obj.bMonoSpace=strcmp(obj.font,'Monospace');
 
         if ischar(obj.relRec)
             obj.apply_prect();
@@ -136,30 +112,8 @@ methods
         if ~isempty(obj.borderColor) &&  numel(obj.bgColor) < 1
             obj.borderColor=repmat(obj.borderColor,1,3);
         end
-
-    end
-    function val=apply_prect(obj)
-        if ~ischar(obj.relRec)
-            return
-        end
-        out=regexp(obj.relRec,'([a-zA-Z]+)([0-9]*)','tokens','once');
-        name=out{1};
-        num=out{2};
-        if ismember(name,{'display','VDisp','screen'})
-            val=obj.Ptb.VDisp.WHpix;
-        else
-            obj.Viewer.Psy.get_rect(name,num);
-        end
-    end
-    function obj=update_ptb(obj,ptb)
-        obj.Ptb=ptb;
-        obj.scrnXYpix=obj.Ptb.VDisp.WHpix;
-        obj.wdwPtr=obj.Ptb.wdwPtr;
-        obj.sStereo=double(obj.Ptb.bStereo);
     end
 %% MAIN
-    function get_tex(obj,~)
-    end
     function get_rect(obj,~)
         obj.exitflag=0;
         if isempty(obj.text) && obj.bActive
@@ -174,79 +128,79 @@ methods
             return
         end
         % L T R B
-        obj.TEXT=strsplit(obj.text,newline);
+        obj.TEXT=strsplit(obj.text,newline,'CollapseDelimiters',false);
         obj.nlines=numel(obj.TEXT);
+
         obj.change_font();
+
         obj.get_rect_raw();
         obj.get_xy_rel();
-        obj.get_rect_full();
+        get_rect@PsyElObj(obj);
+        obj.get_RECT();
         obj.get_border_rect();
+
         obj.restore_font();
     end
     function draw(obj,~)
-        obj.draw_bg();
-        obj.draw_text();
-        obj.draw_frame();
-        obj.run_cursor();
+        obj.change_font();
+        for s = 0:obj.sStereo
+            obj.select_stereo_buffer(s);
+            obj.draw_bg();
+            obj.draw_text();
+            obj.draw_frame();
+            obj.run_cursor();
+        end
+        obj.restore_font();
     end
-    function close()
-    end
-%%
+%% RECT
     function obj=get_rect_raw(obj)
-        obj.H=[];
-        obj.W=[];
-        for i = 1:obj.nlines
-            if isempty(obj.TEXT{i})
-                obj.H(i,1)=obj.lineSpacing;
-                obj.W(i,1)=1;
-                continue
+        % H
+        if isempty(obj.lineSpacing)
+            vSpace=obj.Ptb.cText.H*0.3;
+        else
+            vSpace=obj.lineSpacing;
+        end
+        obj.Hind=ones(obj.nlines,1)*(obj.Ptb.cText.H+vSpace);
+
+        if obj.bMonoSpace
+            nChar=cellfun(@length,obj.TEXT)';
+            obj.Wind=(obj.Ptb.cText.W.*nChar)+(obj.Ptb.cText.WSpc.*(nChar-1));
+        else
+            obj.Wind=zeros(obj.nlines,1);
+            for i = 1:obj.nlines
+                if isempty(obj.TEXT{i})
+                    obj.Wind(i,1)=1;
+                    continue
+                end
+
+                R=Screen('TextBounds',obj.Ptb.wdwPtr,obj.TEXT{i},0,0);
+                obj.Wind(i,1)=R(3)-R(1);
             end
-            R=Screen('TextBounds',obj.wdwPtr,obj.TEXT{i},0,0);
-            obj.H(i,1)=R(4)-R(2)+obj.lineSpacing;
-            obj.W(i,1)=R(3)-R(1);
         end
-        obj.rectRaw=[0 0 max(obj.W) sum(obj.H)];
+        obj.W=max(obj.Wind);
+        obj.H=sum(obj.Hind);
+        obj.rectRaw=[0 0 max(obj.Wind) sum(obj.Hind)];
     end
-    function obj=get_xy_rel(obj)
-        [obj.xRel,obj.yRel]=Shape3D.getXYrel(obj.relRec,obj.relPosPRC,obj.rectRaw,obj.padXY);
-        % L T R B
-        obj.hRel=obj.relRec(4)-obj.relRec(2);
-        obj.wRel=obj.relRec(3)-obj.relRec(1);
-    end
-    function obj=get_rect_full(obj)
-        if obj.bHRel
-            obj.H(obj.H==max(obj.H))=obj.hRel;
-        end
-        if obj.bWRel
-            obj.W(obj.W==max(obj.W))=obj.wRel;
-            %obj.W=obj.wRel;
-        end
-        obj.rect=[obj.xRel obj.yRel obj.xRel+max(obj.W) obj.yRel+sum(obj.H)];
+    function get_RECT(obj);
         obj.RECT=repmat(obj.rect,obj.nlines,1);
-        H2=cumsum(obj.H(1:end));
+        H2=cumsum(obj.Hind(1:end));
         H1=[0; H2(1:end-1)];
         W1=zeros(obj.nlines,1);
-        W2=obj.W;
-        %[size(obj.RECT) size(W1) size(H1) size(W2) size(H2)]
+        W2=obj.Wind;
         obj.RECT=obj.RECT + [ W1 H1 W2 H2 ];
     end
     function obj=get_border_rect(obj)
-        obj.borderRect=obj.rect+[-obj.borderPad -obj.borderPad obj.borderPad obj.borderPad];
+        obj.borderRect=obj.rect+[-obj.borderPadXY -obj.borderPadXY obj.borderPadXY obj.borderPadXY];
     end
+%% DRAW
     function obj=draw_bg(obj)
         if ~isempty(obj.borderFill)
-            for s = 0:obj.sStereo
-                Screen('SelectStereoDrawBuffer', obj.wdwPtr, s);
-                Screen('FillRect', obj.wdwPtr, obj.borderFill, obj.borderRect);
-            end
+            Screen('FillRect', obj.Ptb.wdwPtr, obj.borderFill, obj.borderRect);
         end
     end
     function obj=draw_frame(obj)
-        if ~isempty(obj.borderWidth) && ~isempty(obj.borderColor) && obj.borderWidth > 0
-            for s = 0:obj.sStereo
-                Screen('SelectStereoDrawBuffer', obj.wdwPtr, s);
-                Screen('FrameRect', obj.wdwPtr, obj.borderColor, obj.borderRect, obj.borderWidth);
-            end
+        if obj.borderWidth > 0
+            Screen('FrameRect', obj.Ptb.wdwPtr, obj.borderColor, obj.borderRect, obj.borderWidth);
         end
     end
     function rect=get_rect_for_other(obj)
@@ -256,49 +210,24 @@ methods
        %obj.padXY
        %obj.borderWidth
        %obj.lineSpacing
-       %obj.borderPad
+       %obj.borderPadXY
         %rect(1:2)=Rec.rect(1:2)
     end
     function obj=draw_text(obj)
-    % L T R B
-    %
-        obj.change_font();
-
+        % NOTE, Drawformattedtext is just a wrapper
+        % ASCI 10-13 do not work for newline
         for i = 1:obj.nlines
-        for s = 0:obj.sStereo
-            Screen('SelectStereoDrawBuffer', obj.wdwPtr, s);
-            Screen('DrawText',obj.wdwPtr,obj.TEXT{i},obj.RECT(i,1),obj.RECT(i,2),obj.fgColor,obj.bgColor);
+            Screen('DrawText',obj.Ptb.wdwPtr,obj.TEXT{i},obj.RECT(i,1),obj.RECT(i,2),obj.fgColor,obj.bgColor);
         end
-        end
-        obj.restore_font();
     end
+%% FONT
     function obj=change_font(obj)
-        curFont=Screen('TextFont',obj.wdwPtr);
-        curSize=Screen('TextSize',obj.wdwPtr);
-        obj.bFont=0;
-        if strcmp(obj.font,curFont)
-            obj.oldFont=curFont;
-            Screen('TextFont',obj.wdwPtr,obj.font);
-            obj.bFont=1;
-        end
-
-        obj.bSize=0;
-        if ~isequal(obj.fontSize,curSize)
-            obj.oldFontSize=curSize;
-            Screen('TextSize',obj.wdwPtr,obj.fontSize);
-            obj.bSize=1;
-        end
+        obj.Ptb.change_font(obj.font, obj.fontSize);
     end
     function obj=restore_font(obj)
-        if obj.bFont
-            Screen('TextFont',obj.wdwPtr,obj.oldFont);
-            obj.oldFont=[];
-        end
-        if obj.bSize
-            Screen('TextSize',obj.wdwPtr,obj.oldFontSize);
-            obj.oldFontSize=[];
-        end
+        obj.Ptb.restore_font();
     end
+%% CLEAR
     function obj=clear_text(obj)
         obj.text=[];
         obj.achar=1;
@@ -307,32 +236,30 @@ methods
 end
 methods(Static)
     function P =getP()
+        PE=PsyElObj.getP();
         P={...
-               'bHRel',0,'isbinary';...
-               'bWRel',0,'isbinary';...
-               'relPosPRC','IBR','ischar';...
-               'relPosHW',[],'isnumeric'; ...
-               'relXYctr',[],'isnumeric';...
-                ...
-               'relRec',[],'@(x) true';...
                'fgColor',[],'isnumeric_e';...
                'bgColor',[],'isnumeric_e';...
-               'cursorLineColor',[],'isnumeric_e'; ...
-               'cursorFillColor',[],'isnumeric_e'; ...
+               'lineSpacing',[],'isnumeric';...
                'font',[],'ischar_e';...
                'fontSize',[],'isnumeric_e';...
                 ...
                'padXY',[10 10],'isnumeric';...
-               'lineSpacing',5,'isnumeric';...
+                ...
+               'borderPadXY',10,'isnumeric';...
                'borderColor',[],'isnumeric';...
                'borderWidth',1,'isnumeric';...
-               'borderPad',10,'isnumeric';...
-               'borderFill',[],'isnumeric';...
+               'borderFill',1,'isnumeric';...
+                ...
                'bActive',0,'isbinary';...
                'bActivateable',1,'isbinary'; ...
+                ...
+               'cursorLineColor',[],'isnumeric_e'; ...
+               'cursorFillColor',[],'isnumeric_e'; ...
                'cursorStyle','box','ischar'; ...
                'cursorLineWidth',1,'isnumeric'; ...
         };
+        P=[P; PE];
     end
 end
 end

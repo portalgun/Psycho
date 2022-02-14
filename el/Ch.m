@@ -117,10 +117,13 @@ methods
         obj.init();
     end
     function obj=init(obj)
-        obj.apply_units();
         obj.proc_colors();
         obj.get_parts();
         obj.get_children();
+    end
+    function get_rect(obj,~);
+    end
+    function get_tex(obj,~);
     end
     function obj=update_ptb(obj,ptb)
         obj.Ptb=ptb;
@@ -133,7 +136,7 @@ methods
         posXYdef=obj.Ptb.VDisp.WHpix/2;
         def=repmat(obj.Ptb.wht,1,3);
         defbg=repmat(obj.Ptb.gry,1,3);
-        names={...
+        P={...
             'units','deg','ischar';...
             'posXY',posXYdef,'Num.is';...
             'parts',{'+','x','o','O'},[];... % XXX
@@ -154,10 +157,11 @@ methods
             'inWidth',.25,'Num.is'; ...
             'inColor',def,'Num.is'...
         };
-        obj=Args.parse(obj,names,Opts);
+        obj=Args.parse(obj,P,Opts);
         if all(obj.plateRadius > 0)
             obj.bPlate=1;
         end
+        obj.apply_units();
     end
     function obj=apply_units(obj)
         if strcmp(obj.units,'deg')
@@ -240,19 +244,71 @@ methods
         end
     end
     function obj=draw(obj,~)
-        for k = 1:length(obj.children)
-            c=obj.children{k};
-            switch c{3}
-            case 'line'
-                obj.draw_line(c{4},c{5});
-            case 'oval'
-                obj.draw_oval(c{4},c{5});
-            case {'rect','rect','sq','square'}
-                obj.draw_rect(c{4},c{5});
-            otherwise
-                error(['Unhandled shape ' c{3} ]);
+        childs=vertcat(obj.children{:});
+        lind=ismember(childs(:,3),'line');
+
+        % DRAW ALL GROUPED LINES AT ONCE
+        if any(lind)
+            [indChg,runVal,runCnt]=Msk.runLengthSimple(lind);
+            strt=indChg(runVal==1);
+            cnt=runCnt(runVal==1);
+            endd=strt+cnt-1;
+
+            colors=cell(length(strt),1);
+            widths=cell(length(strt),1);
+            xy=cell(length(strt),1);
+            for k = 1:length(strt)
+                lines=cell2mat(vertcat(childs{strt(k):endd(k),5}))';
+                n=size(lines,2)*2;
+
+                colors{k}=repelem( vertcat(childs{strt(k):endd(k),4})', 1,2);
+                widths{k}=lines(5,:);
+                xy{k}=[reshape(lines([1,3],:),[1,n]); ...
+                       reshape(lines([2,4],:),[1,n])];
             end
         end
+
+
+        for s= 0:obj.bStereo
+            Screen('SelectStereoDrawBuffer', obj.Ptb.wdwPtr, s);
+
+            lstrt=false;
+            l=0;
+            for k= 1:size(childs)
+                if lind(k)
+                    if ~lstrt
+                        l=l+1;
+                        Screen('DrawLines',obj.Ptb.wdwPtr,xy{l},widths{l},colors{l});
+                        lstrt=true;
+                    end
+                    continue
+                end
+
+                lstrt=false;
+                c=childs(k,:);
+                switch c{3}
+                case 'line'
+                    obj.draw_line(c{4},c{5});
+                case 'oval'
+                    obj.draw_oval(c{4},c{5});
+                case {'rect','rect','sq','square'}
+                    obj.draw_rect(c{4},c{5});
+                otherwise
+                    error(['Unhandled shape ' c{3} ]);
+                end
+            end
+        end
+    end
+    function obj=draw_lines(obj)
+    end
+    function obj=draw_rect(obj,color,rect)
+        Screen('FillRect',obj.Ptb.wdwPtr,color,rect);
+    end
+    function obj=draw_oval(obj,color,rect)
+        Screen('FillOval',obj.Ptb.wdwPtr,color,rect);
+    end
+    function obj=draw_line(obj,color,line)
+        Screen('DrawLine',obj.Ptb.wdwPtr,color,line{:});
     end
 end
 methods(Access = private)
@@ -396,24 +452,6 @@ methods(Access = private)
         obj.prect=obj.psyRect(fliplr(obj.posXY),obj.plateRadius(2),obj.plateRadius(1));
     end
 %% draw
-    function obj=draw_rect(obj,color,rect)
-        for s = 0:obj.bStereo
-            Screen('SelectStereoDrawBuffer', obj.wdwPtr, s);
-            Screen('FillRect',obj.wdwPtr,color,rect);
-        end
-    end
-    function obj=draw_oval(obj,color,rect)
-        for s = 0:obj.bStereo
-            Screen('SelectStereoDrawBuffer', obj.wdwPtr, s);
-            Screen('FillOval',obj.wdwPtr,color,rect);
-        end
-    end
-    function obj=draw_line(obj,color,line)
-        for s = 0:obj.bStereo
-            Screen('SelectStereoDrawBuffer', obj.wdwPtr, s);
-            Screen('DrawLine',obj.wdwPtr,color,line{:});
-        end
-    end
 
     function rect=psyRect(obj,ImCtrRC,h,w)
         t=ImCtrRC(:,1)-h;

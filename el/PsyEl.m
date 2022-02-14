@@ -12,6 +12,7 @@ properties
     bTexUpdate=true
     status= '' % init draw, tex, close, done
     class
+    priority
 
     tex
     rect
@@ -69,6 +70,8 @@ methods
             end
             if ~isempty(P)
                 obj.objOpts=Args.parse(struct(),P,UM);
+            else
+                obj.objOpts=UM;
             end
         end
     end
@@ -113,10 +116,16 @@ methods
     function get_rect(obj,f)
         if nargin < 2; f=1; end
 
+
         if ~obj.bRectUpdate(f)
             ;
         elseif ~isempty(obj.Obj)
-            obj.Obj.get_rect(f);
+            try
+                obj.Obj.get_rect(f);
+            catch ME
+                obj.Viewer.error(['GetRect -- '  obj.name ' ' num2str(obj.num) ' of ' obj.class ]);
+                rethrow(ME);
+            end
         else
             X=[obj.XYpix{1}(1) obj.XYpix{2}(1)];
             Y=[obj.XYpix{1}(2) obj.XYpix{2}(2)];
@@ -270,22 +279,24 @@ methods(Static)
         h=WH(2);
         w=WH(1);
 
-        t=Y-h/2;
-        b=Y+h/2;
-        r=X+w/2;
         l=X-w/2;
+        t=Y-h/2;
+        r=X+w/2;
+        b=Y+h/2;
 
         rec=[l t r b];
     end
     function P=getP()
         P={...
+           'priority',0,'Num.is';...
            'class','','ischar_e';...
-           'floatPrecision',0,'Num.is';...
+           'floatPrecision',2,'Num.is';...
            'duration',0,'isbinary';...
            'stringOpts',struct(),'isoptions_e';...
            'bStatic',true,'isbinary';...
            'bTex',0,'isbinary'; ...
            'bFlip',0,'isbinary'; ...
+           'bHidden',0,'isbinary'; ...
         };
     end
 end

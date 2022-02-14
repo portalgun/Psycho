@@ -1,3 +1,0 @@
-PsychLinuxConfiguration
-Screen('Screens')
-Screen('ConfigureDisplay')

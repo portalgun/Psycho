@@ -20,25 +20,20 @@ methods
         obj.get_text(0);
         %onarignbj.init();
     end
-    function obj=get_rect(obj)
+    function obj=get_rect(obj,~)
     % OVERRIDE
+        obj.nTrial=obj.Viewer.Info.nTrial;
         n=ceil(log10(obj.nTrial));
         trial=10^n*8;
         obj.maxChar=n+1;
-        obj.get_text(trial);
+        obj.get_text(obj.Viewer.trl);
 
         get_rect@pStr(obj);
-    end
-    function obj=draw(obj,trial)
-    % OVERRIDE
-        obj.nTrial=obj.Viewer.Info.nTrial;
-        obj.get_text(obj.Viewer.trl);
-        draw@pStr(obj);
     end
     function obj=get_text(obj,trial)
         f=['% ' num2str(obj.maxChar) 'i'];
         str=num2str(trial,f);
-        obj.text=['Trial ' num2str(str) '/' num2str( obj.nTrial ) ];
+        obj.TEXT={['Trial ' num2str(str) '/' num2str( obj.nTrial ) ]};
     end
 end
 methods(Static=true)
