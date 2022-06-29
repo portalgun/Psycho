@@ -26,6 +26,7 @@ properties
     hRel
 end
 properties(Hidden)
+    relName
     sStereo
     Viewer
     Ptb
@@ -72,10 +73,10 @@ methods
     end
 %% REL REC
     function val=apply_prect(obj)
-        if ~ischar(obj.relRec)
-            return
+        if ischar(obj.relRec)
+            obj.relName=obj.relRec;
         end
-        out=regexp(obj.relRec,'([a-zA-Z]+)([0-9]*)','tokens','once');
+        out=regexp(obj.relName,'([a-zA-Z]+)([0-9]*)','tokens','once');
         name=out{1};
         num=out{2};
         if ismember(name,{'display','VDisp','screen'})
@@ -87,6 +88,7 @@ methods
     end
 
     function obj=get_xy_rel(obj)
+        obj.apply_prect();
         [obj.xRel,obj.yRel]=Shape3D.getXYrel(obj.relRec,obj.relPosPRC,obj.rectRaw,obj.padXY);
         % L T R B
         obj.hRel=obj.relRec(4)-obj.relRec(2);

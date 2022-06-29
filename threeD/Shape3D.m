@@ -67,9 +67,9 @@ methods
             error('unhanled Point3D combination. write code?');
         end
         obj.bShapeNeedsInit=0;
-        if isprop(obj,'ELIND') && isa(obj.ELIND,'elInd')
-            obj.ELIND.update_shape_status(obj.t,obj.i,1);
-        end
+        %if isprop(obj,'ELIND') && isa(obj.ELIND,'elInd')
+        %    obj.ELIND.update_shape_status(obj.t,obj.i,1);
+        %end
     end
     function obj=clear_shape(obj)
         obj.points=[]; % used for construction, not Point3D
@@ -81,9 +81,9 @@ methods
         obj.WHpix=[];
 
         obj.bShapeNeedsInit=1;
-        if isprop(obj,'ELIND') && isa(obj.ELIND,'elInd')
-            obj.ELIND.update_shape_status(obj.t,obj.i,-1);
-        end
+        %if isprop(obj,'ELIND') && isa(obj.ELIND,'elInd')
+        %    obj.ELIND.update_shape_status(obj.t,obj.i,-1);
+        %end
     end
 % SET
     function update_WHm_from_WHdegRaw(obj)

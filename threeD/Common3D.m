@@ -3,6 +3,7 @@ classdef Common3D < handle
 % no ptb stuff
 properties
     VDisp
+    bParsed
 end
 
 methods
@@ -23,7 +24,7 @@ methods
     end
 %% UPDATE
     function m=pix2m(obj,val)
-        m=val./obj.VDisp.pixPerMXY;
+        m=val./obj.VDisp.pixPerMxy;
     end
     function pix=m2pix(obj,val)
         pix=val.*obj.VDisp.pixPerMxy;
@@ -33,6 +34,9 @@ methods
     end
     function deg=m2deg(obj,val)
         deg=val.*obj.VDisp.degPerMxy;
+    end
+    function deg=pix2deg(obj,val)
+        deg=val./obj.VDisp.pixPerDegXY;
     end
 
 end

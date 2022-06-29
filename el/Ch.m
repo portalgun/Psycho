@@ -245,7 +245,7 @@ methods
     end
     function obj=draw(obj,~)
         childs=vertcat(obj.children{:});
-        lind=ismember(childs(:,3),'line');
+        lind=ismember_cell(childs(:,3),'line');
 
         % DRAW ALL GROUPED LINES AT ONCE
         if any(lind)

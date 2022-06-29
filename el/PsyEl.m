@@ -2,11 +2,13 @@ classdef  PsyEl < handle
 properties
     name
     num
+    group
 
     bFlip
     when=[]
 
     bHidden
+    type % 0 stm; 1 util; 2 prompt; 3 aux
     bHold
     bRectUpdate=true
     bTexUpdate=true
@@ -57,11 +59,18 @@ methods
         catch ME
             rethrow(ME);
         end
+        if isempty(obj.class)
+            obj.class='';
+        end
 
         P=obj.Viewer.Info.getP;
         obj.stringOpts=Args.parse(struct(),P,obj.stringOpts);
 
         if ~ismember(obj.class,{'stm'})
+            if isempty(obj.type)
+                obj.type=0;
+            end
+
             str=[obj.class '.getP();'];
             try
                 P=eval(str);
@@ -73,6 +82,8 @@ methods
             else
                 obj.objOpts=UM;
             end
+        elseif isempty(obj.type)
+            obj.type=3;
         end
     end
     function init(obj)
@@ -107,6 +118,10 @@ methods
         else
             for s = obj.buffs
                 i=s+1;
+                if ~isempty(obj.tex{i}{f})
+                    Screen('Close', obj.tex{i}{f});
+                    obj.tex{i}{f}=[];
+                end
                 obj.tex{i}{f}  = Screen('MakeTexture', obj.PTB.wdwPtr, obj.im{i}(:,:,f),[],[],obj.floatPrecision);
             end
         end
@@ -116,14 +131,14 @@ methods
     function get_rect(obj,f)
         if nargin < 2; f=1; end
 
-
         if ~obj.bRectUpdate(f)
             ;
         elseif ~isempty(obj.Obj)
             try
                 obj.Obj.get_rect(f);
             catch ME
-                obj.Viewer.error(['GetRect -- '  obj.name ' ' num2str(obj.num) ' of ' obj.class ]);
+                str=['GetRect -- '  obj.name ' ' num2str(obj.num) ' of ' obj.class ]
+                obj.Viewer.error(str);
                 rethrow(ME);
             end
         else
@@ -139,7 +154,7 @@ methods
     end
     function draw(obj,f)
         if nargin < 2; f=1; end
-        if obj.bHidden
+        if obj.bHidden || strcmp(obj.status,'close')
             ;
         elseif ~isempty(obj.Obj)
             try
@@ -166,8 +181,9 @@ methods
         else
             for s = obj.buffs
                 i=s+1;
-                if ~isempty(obj.tex{i})
+                if ~isempty(obj.tex{i}{f})
                     Screen('Close', obj.tex{i}{f});
+                    obj.tex{i}{f}=[];
                 end
             end
         end
@@ -218,7 +234,7 @@ methods
         obj.buffs=0:obj.nBuff-1;
         obj.tex=cell(obj.nBuff,1);
         obj.rect=cell(obj.nBuff,1);
-        for i = obj.nBuff
+        for i = 1:obj.nBuff
             if obj.bStatic
                 obj.tex{i}=cell(1);
                 obj.rect{i}=cell(1);
@@ -243,6 +259,9 @@ methods
         else
             obj.bTexUpdate=true(obj.nFrames,1);
         end
+    end
+    function activate_sel(obj,name,num)
+        obj.Psy.A.(name).(num)
     end
 
 %% UITL
@@ -289,6 +308,7 @@ methods(Static)
     function P=getP()
         P={...
            'priority',0,'Num.is';...
+           'group','','ischar_e';...
            'class','','ischar_e';...
            'floatPrecision',2,'Num.is';...
            'duration',0,'isbinary';...
@@ -297,6 +317,7 @@ methods(Static)
            'bTex',0,'isbinary'; ...
            'bFlip',0,'isbinary'; ...
            'bHidden',0,'isbinary'; ...
+           'type',[],'Num.is_e';
         };
     end
 end
