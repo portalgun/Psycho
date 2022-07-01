@@ -209,7 +209,7 @@ methods
                     Opts.parts=Opts.parts{1};
                 end
             else
-                Opts=structSelect(obj,length(obj.parts),i,1);
+                Opts=Struct.select(obj,length(obj.parts),i,1);
             end
             %opts=rmfield(Opts,'ch');
             switch type
